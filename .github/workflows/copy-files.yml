@@ -1,0 +1,47 @@
+name: Copy files from another repository
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 获取自己的 repository
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+
+      # 2. 获取别人分享的 repository
+      - name: Checkout source repository
+        uses: actions/checkout@v6
+        with:
+          repository: sxj0808/single-cell-nucleus-analysis
+          ref: main
+          path: source
+          persist-credentials: false
+
+      # 3. 复制指定文件夹
+      - name: Copy files
+        run: |
+          mkdir -p sxj_code
+          cp -a source/src/mouse_qc/. sxj_code/
+
+      # 4. 提交到自己的 repository
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add sxj_code
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Copy shared pipeline files"
+            git push
+          else
+            echo "No changes to commit"
+          fi
