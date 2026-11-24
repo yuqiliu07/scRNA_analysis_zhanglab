@@ -1,0 +1,9 @@
+sample,mouse_id,genotype,sex,age
+A,232,WT,M,4 weeks
+B,233,WT,M,4 weeks
+C,234,WT,F,4 weeks
+D,235,WT,F,4 weeks
+E,229,I4M,M,4 weeks
+F,231,I4M,M,4 weeks
+G,226,I4M,F,4 weeks
+H,228,I4M,F,4 weeks
