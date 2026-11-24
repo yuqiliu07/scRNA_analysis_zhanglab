@@ -16,12 +16,13 @@ jobs:
         uses: actions/checkout@v6
 
       # 2. 获取别人分享的 repository
-      - name: Checkout source repository
+      - name: Checkout secret repository
         uses: actions/checkout@v6
         with:
           repository: sxj0808/single-cell-nucleus-analysis
           ref: main
           path: source
+          token: ${{ secrets.SOURCE_TOKEN }}
           persist-credentials: false
 
       # 3. 复制指定文件夹
