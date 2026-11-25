@@ -12,6 +12,8 @@ For each sample:
 
 Usage (on Hoffman2, login node is fine: ~5 min, <2 GB RAM):
   module load python/3.12.13
+  # login node caps virtual memory at 4 GB: keep BLAS single-threaded
+  export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 MALLOC_ARENA_MAX=2
   python3 02_plateau_barcode_rank.py
 """
 import argparse
