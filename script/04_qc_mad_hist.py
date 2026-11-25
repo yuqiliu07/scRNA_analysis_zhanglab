@@ -28,6 +28,7 @@ import h5py
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 from matplotlib.gridspec import GridSpecFromSubplotSpec
 import numpy as np
 import pandas as pd
@@ -88,8 +89,12 @@ def mad_bounds(x, log):
 def draw_hist(ax, x, st, label, log, color):
     x = np.asarray(x, float)
     if log:
-        bins = np.logspace(np.log10(max(x.min(), 1)), np.log10(x.max()), 60)
+        # widen the axis so all +/-3 and +/-5 MAD lines are visible
+        lo = min(max(x.min(), 1), st["lo5"]) / 1.2
+        hi = max(x.max(), st["hi5"]) * 1.2
+        bins = np.logspace(np.log10(lo), np.log10(hi), 70)
         ax.set_xscale("log")
+        ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
     else:
         bins = np.linspace(0, max(np.percentile(x, 99.5), MT_CUTOFF * 1.5, st["hi5"]), 60)
     ax.hist(np.clip(x, bins[0], bins[-1]), bins=bins, color=color, alpha=0.75, lw=0)
