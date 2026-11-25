@@ -33,13 +33,25 @@ CLIFF_UMI = 50          # barcodes with UMI > this define n_partitions
 PLATEAU_LO, PLATEAU_HI = 0.6, 1.0
 
 
-def umi_per_barcode(h5_path):
-    """Total UMI per barcode from a 10x CSC matrix (columns = barcodes)."""
+def umi_per_barcode(h5_path, block=200_000):
+    """Total UMI per barcode from a 10x CSC matrix (columns = barcodes).
+
+    Reads `data` in blocks of barcodes so peak memory stays ~100 MB
+    (Hoffman2 login nodes cap virtual memory at 4 GB per process).
+    """
     with h5py.File(h5_path, "r") as f:
-        data = f["matrix/data"][:]
-        indptr = f["matrix/indptr"][:]
-    cs = np.concatenate(([0], np.cumsum(data, dtype=np.int64)))
-    return cs[indptr[1:]] - cs[indptr[:-1]]
+        dset = f["matrix/data"]
+        indptr = f["matrix/indptr"][:].astype(np.int64)
+        n = len(indptr) - 1
+        totals = np.zeros(n, dtype=np.int64)
+        for a in range(0, n, block):
+            b = min(a + block, n)
+            start, end = indptr[a], indptr[b]
+            chunk = dset[start:end].astype(np.int64)
+            cs = np.concatenate(([0], np.cumsum(chunk)))
+            loc = indptr[a:b + 1] - start
+            totals[a:b] = cs[loc[1:]] - cs[loc[:-1]]
+    return totals
 
 
 def n_barcodes(h5_path):
