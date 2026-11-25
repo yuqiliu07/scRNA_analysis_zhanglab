@@ -16,7 +16,8 @@
 #
 # Doublets: scDblFinder on all EmptyDrops-called nuclei of the sample
 #   (before QC filtering, so every nucleus gets a call).
-#   Expected doublet rate: DBR_PER1K per 1000 cells (default 0.004 = 10x GEM-X /
+#   Expected doublet rate: dbr = min(DBR_PER1K * n_cells / 1000, DBR_MAX)
+#   (DBR_PER1K default 0.004 = 10x GEM-X /
 #   3' v4 multiplet rate; scDblFinder's own default 0.008 is for older chemistry).
 #
 # Output (<OUT_DIR>/):
@@ -27,7 +28,7 @@
 #   <sample>_qc_doublet_summary.csv thresholds and counts
 #
 # Usage: Rscript 05_qc_doublet.R <sample> [n_cores]
-# Env (optional): CR_DIR, ED_DIR, OUT_DIR, DBR_PER1K
+# Env (optional): CR_DIR, ED_DIR, OUT_DIR, DBR_PER1K, DBR_MAX (default 0.15)
 
 suppressPackageStartupMessages({
   library(DropletUtils)
@@ -53,9 +54,10 @@ cr_dir    <- Sys.getenv("CR_DIR",  file.path(scratch, "FSU_seq/02_cellranger/sha
 ed_dir    <- Sys.getenv("ED_DIR",  file.path(scratch, "FSU_seq/work_dir/emptydrops_mm10"))
 out_dir   <- Sys.getenv("OUT_DIR", file.path(scratch, "FSU_seq/work_dir/qc_mm10"))
 dbr_per1k <- as.numeric(Sys.getenv("DBR_PER1K", "0.004"))
+dbr_max   <- as.numeric(Sys.getenv("DBR_MAX", "0.15"))
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
-message(sprintf("[%s] CR_DIR=%s ED_DIR=%s OUT_DIR=%s DBR_PER1K=%g cores=%d",
-                sample, cr_dir, ed_dir, out_dir, dbr_per1k, n_cores))
+message(sprintf("[%s] CR_DIR=%s ED_DIR=%s OUT_DIR=%s DBR_PER1K=%g DBR_MAX=%g cores=%d",
+                sample, cr_dir, ed_dir, out_dir, dbr_per1k, dbr_max, n_cores))
 
 # ---- EmptyDrops-called nuclei ----
 ed <- fread(file.path(ed_dir, paste0(sample, "_emptydrops_full.csv")))
@@ -98,13 +100,10 @@ flags[, pass_qc := !Reduce(`|`, .SD), .SDcols = fail_cols]
 # ---- scDblFinder ----
 set.seed(SEED)
 bp <- if (n_cores > 1) MulticoreParam(workers = n_cores, RNGseed = SEED) else SerialParam(RNGseed = SEED)
-dbl_args <- list(sce, BPPARAM = bp)
-if ("dbr.per1k" %in% names(formals(scDblFinder))) {
-  dbl_args$dbr.per1k <- dbr_per1k
-} else {
-  dbl_args$dbr <- dbr_per1k * ncol(sce) / 1000
-}
-sce <- do.call(scDblFinder, dbl_args)
+# expected doublet rate, capped at DBR_MAX
+dbr <- min(dbr_per1k * ncol(sce) / 1000, dbr_max)
+message(sprintf("[%s] dbr = min(%g * %d / 1000, %g) = %.4f", sample, dbr_per1k, ncol(sce), dbr_max, dbr))
+sce <- scDblFinder(sce, dbr = dbr, BPPARAM = bp)
 stopifnot(identical(colnames(sce), flags$barcode))
 flags[, scDblFinder_score := round(sce$scDblFinder.score, 5)]
 flags[, scDblFinder_class := as.character(sce$scDblFinder.class)]
@@ -136,6 +135,9 @@ summary_dt <- data.table(
   n_pass_qc           = sum(flags$pass_qc),
   pct_fail_qc         = round(100 * mean(!flags$pass_qc), 2),
   dbr_per1k           = dbr_per1k,
+  dbr_max             = dbr_max,
+  dbr_used            = round(dbr, 4),
+  dbr_capped          = dbr_per1k * nrow(flags) / 1000 > dbr_max,
   n_doublet           = sum(flags$predicted_doublet),
   pct_doublet         = round(100 * mean(flags$predicted_doublet), 2),
   n_doublet_in_pass   = sum(flags$pass_qc & flags$predicted_doublet),

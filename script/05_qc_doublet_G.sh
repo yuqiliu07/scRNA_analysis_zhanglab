@@ -11,7 +11,7 @@
 
 # QC flags（scuttle perCellQCFilters）+ scDblFinder：样本 G
 #   nUMI / nGene: median ± 5 MAD (log)；nGene ≥ 200；pct_mt ≤ median + 3 MAD 且 ≤ 5%
-# 可用 sbatch --export=ALL,CR_DIR=...,ED_DIR=...,OUT_DIR=...,DBR_PER1K=... 覆盖；默认 = Novogene mm10 数据
+# 可用 sbatch --export=ALL,CR_DIR=...,ED_DIR=...,OUT_DIR=...,DBR_PER1K=...,DBR_MAX=... 覆盖；默认 = Novogene mm10 数据
 set -euo pipefail
 . /u/local/Modules/default/init/modules.sh
 module purge
@@ -21,5 +21,6 @@ export CR_DIR=${CR_DIR:-$SCRATCH/FSU_seq/02_cellranger/shared_h5}
 export ED_DIR=${ED_DIR:-$SCRATCH/FSU_seq/work_dir/emptydrops_mm10}
 export OUT_DIR=${OUT_DIR:-$SCRATCH/FSU_seq/work_dir/qc_mm10}
 export DBR_PER1K=${DBR_PER1K:-0.004}
+export DBR_MAX=${DBR_MAX:-0.15}
 
 Rscript $HOME/scrna_project/script/05_qc_doublet.R G ${SLURM_CPUS_PER_TASK:-8}
