@@ -16,10 +16,20 @@ module purge
 module load R/4.6.1
 
 SAMPLE=A
-OUT_DIR=$SCRATCH/FSU_seq/work_dir/emptydrops
-GDRIVE_DIR=gdrive:FSU_seq_results/results/emptydrops
+# 可用 sbatch --export=ALL,CR_DIR=...,OUT_DIR=...,GDRIVE_DIR=... 覆盖；默认值 = 原 GRCm39 流程
+#   CR_DIR      Cell Ranger 输出根目录（读取 <CR_DIR>/<sample>/outs/）
+#   OUT_DIR     plateau.csv 所在目录，也是结果输出目录
+#   GDRIVE_DIR  结果上传位置；设为 none 则不上传
+export CR_DIR=${CR_DIR:-$SCRATCH/FSU_seq/02_cellranger}
+export OUT_DIR=${OUT_DIR:-$SCRATCH/FSU_seq/work_dir/emptydrops}
+GDRIVE_DIR=${GDRIVE_DIR:-gdrive:FSU_seq_results/results/emptydrops}
 
 Rscript $HOME/scrna_project/script/03_emptydrops.R $SAMPLE ${SLURM_CPUS_PER_TASK:-8}
+
+if [ "$GDRIVE_DIR" = "none" ]; then
+    echo "[$SAMPLE] GDRIVE_DIR=none，跳过上传；结果在 $OUT_DIR"
+    exit 0
+fi
 
 # 结果 CSV 推到 Google Drive（只传 CSV，不传数据和代码）
 rclone copy $OUT_DIR $GDRIVE_DIR \

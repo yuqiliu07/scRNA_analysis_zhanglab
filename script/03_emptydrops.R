@@ -1,15 +1,23 @@
 #!/usr/bin/env Rscript
 # EmptyDrops cell calling for one FSU_seq sample.
 #
-# lower  = this sample's plateau_q75 from work_dir/emptydrops/plateau.csv
+# lower  = this sample's plateau_q75 from <OUT_DIR>/plateau.csv
 #          (barcodes with total UMI <= lower form the ambient profile)
 # niters = 10000, FDR threshold = 0.001
 #
-# Outputs (in work_dir/emptydrops/):
+# Outputs (in <OUT_DIR>/):
 #   <sample>_emptydrops_full.csv    every barcode with total UMI > lower
 #   <sample>_emptydrops_summary.csv EmptyDrops vs Cell Ranger cell calls
 #
 # Usage: Rscript 03_emptydrops.R <sample> [n_cores]
+#
+# Optional environment variables (defaults = original GRCm39 run):
+#   CR_DIR   Cell Ranger output root, reads <CR_DIR>/<sample>/outs/
+#            default: $SCRATCH/FSU_seq/02_cellranger
+#            Novogene mm10: $SCRATCH/FSU_seq/02_cellranger/shared_h5
+#   OUT_DIR  directory holding plateau.csv and receiving outputs
+#            default: $SCRATCH/FSU_seq/work_dir/emptydrops
+#            Novogene mm10: $SCRATCH/FSU_seq/work_dir/emptydrops_mm10
 
 suppressPackageStartupMessages({
   library(DropletUtils)
@@ -28,8 +36,10 @@ FDR_THR <- 0.001
 SEED    <- 100
 
 scratch <- Sys.getenv("SCRATCH", "/u/scratch/y/yuqi")
-cr_outs <- file.path(scratch, "FSU_seq/02_cellranger", sample, "outs")
-out_dir <- file.path(scratch, "FSU_seq/work_dir/emptydrops")
+cr_dir  <- Sys.getenv("CR_DIR",  file.path(scratch, "FSU_seq/02_cellranger"))
+out_dir <- Sys.getenv("OUT_DIR", file.path(scratch, "FSU_seq/work_dir/emptydrops"))
+cr_outs <- file.path(cr_dir, sample, "outs")
+message(sprintf("[%s] CR_DIR = %s ; OUT_DIR = %s", sample, cr_dir, out_dir))
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # ---- lower = plateau_q75 ----
