@@ -16,6 +16,7 @@
 | 07 | `07_install_Seurat.sh`、`07_seurat_merge.R/.sh` | sbatch | `seurat_mm10/fsu_merged_mm10.rds`（只保留 pass_qc_singlet 的细胞；layer 为 counts.A..H；HVG 取各样本并集） |
 | 08 | `08_umap_mixing.R/.sh` | sbatch | `umap_mm10/`：PCA → UMAP（PC 1–20，未做整合），并计算 kNN mixing score（可选，尚未运行） |
 | 09 | `09_harmony_cluster.R/.sh` | sbatch | `harmony_mm10/`：PCA（计算 50 个 PC，使用前 30 个）→ Harmony（按样本整合）→ UMAP + SNN（k=20）→ Leiden（igraph，resolution=1.0）；输出整合前后的 UMAP 对比图和 cluster 图 |
+| 10 | `10_compare_novogene_umap.R/.sh` | sbatch | `compare_novogene/`：与 Novogene 交付的 UMAP/cluster 对比（细胞重叠、ARI、2D kNN 混合度、交叉着色 UMAP） |
 
 需要安装的 R 包见 `03_install_R_packages.sh`、`05_install_R_packages.sh`、`07_install_Seurat.sh`，
 R 版本为 R/4.6.1。
