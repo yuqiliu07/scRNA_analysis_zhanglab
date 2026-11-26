@@ -10,7 +10,8 @@ Parameters per sample:
                                as CellBender recommends)
   --epochs 60, --fpr 0.01, --checkpoint-mins 10
   --learning-rate 1e-4 (CellBender default); per-sample override with --lr, e.g. --lr D=5e-5
-  (D hit "NaN in mu" at the start of training with 1e-4; CellBender suggests halving the rate)
+  (D hit "NaN in mu" at the start of training with 1e-4; CellBender suggests halving the rate.
+   B failed in epoch 1 with "numel: integer multiplication overflow" in backward -> also 5e-5)
 
 Environment: $HOME/envs/cellbender_t113 (CellBender 0.3.2, torch 1.13.1+cu117, pyro-ppl 1.8.6).
 With torch 2.5 + pyro 1.9 the checkpoint cannot be saved ("cannot pickle weakref") and the
@@ -92,8 +93,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--pad", type=int, default=5000)
     ap.add_argument("--time", default="02:00:00")
-    ap.add_argument("--lr", action="append", default=["D=5e-5"],
-                    help="per-sample learning rate, S=RATE (default D=5e-5; others 1e-4)")
+    ap.add_argument("--lr", action="append", default=["B=5e-5", "D=5e-5"],
+                    help="per-sample learning rate, S=RATE (default B, D = 5e-5; others 1e-4)")
     a = ap.parse_args()
     lr_over = dict(x.split("=", 1) for x in a.lr)
 
