@@ -19,7 +19,7 @@
 | 10 | `10_compare_novogene_umap.R/.sh` | sbatch | `compare_novogene/`：与 Novogene 交付的 UMAP/cluster 对比（细胞重叠、ARI、2D kNN 混合度、交叉着色 UMAP） |
 | 11 | `11_cluster_clean_annot.R/.sh` | sbatch | `annot_mm10/`：清理小 cluster（< 10 个核并入近邻 cluster）；UMAP 按 cluster/doublet score/pct_mt 着色；各 cluster nGene 中位数；用原始代码的 17 个 marker panel 生成 cluster × 细胞类型热图 |
 | 12 | `12_soupx.R/.sh` | sbatch | `soupx_mm10/`：每个样本运行 SoupX（soup = UMI ≤ plateau_q75 的 barcode，cluster = 第 11 步的 leiden_clean）；rho 用 autoEstCont，失败时用 CM 基因在非心肌 cluster 中的计数估计；`soupx_rho.csv`、rho 分布图、校正后计数 `<s>_soupx_counts.rds` |
-| 13 | `13_install_cellbender.sh`、`13_make_cellbender_scripts.py`、`13_cellbender_<s>.sh`、`13_submit_all_cellbender.sh` | 登录节点运行 python 生成脚本，然后 sbatch（GPU） | `cellbender_mm10/<s>/`：CellBender remove-background（expected-cells = EmptyDrops 细胞数，total-droplets = plateau_rank_start + 5000，epochs = 60） |
+| 13 | `13_install_cellbender.sh`、`13_make_cellbender_scripts.py`、`13_cellbender_<s>.sh`、`13_submit_all_cellbender.sh` | 登录节点运行 python 生成脚本，然后 sbatch（GPU） | `cellbender_mm10/<s>/`：CellBender remove-background（expected-cells = EmptyDrops 细胞数，total-droplets = plateau_rank_start + 5000，epochs = 60；D 的 learning-rate 为 5e-5；环境 `$HOME/envs/cellbender_t113`：torch 1.13.1 + pyro 1.8.6） |
 
 需要安装的 R 包见 `03_install_R_packages.sh`、`05_install_R_packages.sh`、`07_install_Seurat.sh`，
 R 版本为 R/4.6.1。

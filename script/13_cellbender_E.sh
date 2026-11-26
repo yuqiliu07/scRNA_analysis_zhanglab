@@ -3,7 +3,7 @@
 #SBATCH --account=pi_hzh
 #SBATCH --partition=campus
 #SBATCH --gres=gpu:1
-#SBATCH --constraint="V100|A100|H200|RTX2080Ti"
+#SBATCH --constraint="V100|A100|RTX2080Ti"
 #SBATCH --time=02:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
@@ -15,13 +15,13 @@
 # CellBender remove-background：样本 E（由 13_make_cellbender_scripts.py 生成，请勿手改，改参数后重新生成）
 #   expected-cells          = 37098  (EmptyDrops 细胞数)
 #   total-droplets-included = 89781  (plateau_rank_start 84781 + 5000，plateau_rank_end = 141301)
-#   epochs = 60；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
-# GPU 限定 V100 / A100 / H200 / RTX2080Ti（torch 2.5.1+cu124 不支持 Blackwell 和 P4）
+#   epochs = 60；learning-rate = 1e-4；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
+# GPU 限定 V100 / A100 / RTX2080Ti（torch 1.13.1+cu117 不支持 H200、Blackwell 和 P4）
 set -euo pipefail
 . /u/local/Modules/default/init/modules.sh
 module purge
 module load python/3.10.20
-source $HOME/envs/cellbender/bin/activate
+source $HOME/envs/cellbender_t113/bin/activate
 
 OUT=/u/scratch/y/yuqi/FSU_seq/work_dir/cellbender_mm10/E
 GDRIVE_ROOT=${GDRIVE_ROOT:-gdrive:FSU_seq_results}
@@ -35,6 +35,7 @@ cellbender remove-background --cuda \
   --expected-cells 37098 \
   --total-droplets-included 89781 \
   --epochs 60 \
+  --learning-rate 1e-4 \
   --fpr 0.01 \
   --checkpoint-mins 10
 
