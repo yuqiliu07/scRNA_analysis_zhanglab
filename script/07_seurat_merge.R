@@ -81,6 +81,10 @@ for (s in samples) {
 
 obj <- merge(objs[[1]], y = objs[-1], project = "FSU_seq")
 rm(objs); invisible(gc())
+# merge() names layers counts.1..counts.8; re-split by sample so layers are counts.A..counts.H
+obj <- JoinLayers(obj)
+obj[["RNA"]] <- split(obj[["RNA"]], f = obj$orig.ident)
+stopifnot(setequal(Layers(obj, search = "counts"), paste0("counts.", samples)))
 message("Layers after merge: ", paste(Layers(obj), collapse = ", "))
 
 # ---- 4. gene filter: >= min_cells nuclei across all samples ----
