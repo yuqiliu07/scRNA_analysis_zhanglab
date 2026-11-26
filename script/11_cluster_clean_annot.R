@@ -124,8 +124,8 @@ md <- data.table(cell = colnames(obj), sample = as.character(obj$orig.ident),
                  nGene = obj$qc_nGene, nUMI = obj$qc_nUMI, pct_mt = obj$qc_pct_mt,
                  dbl = obj$scDblFinder_score)
 top2 <- t(apply(ps, 1, function(r) { o <- order(-r); c(names(r)[o[1]], r[o[1]], names(r)[o[2]], r[o[2]]) }))
-summ <- md[, .(n_nuclei = .N, median_nGene = median(nGene), median_nUMI = median(nUMI),
-               median_pct_mt = round(median(pct_mt), 3), mean_doublet_score = round(mean(dbl), 4),
+summ <- md[, .(n_nuclei = .N, median_nGene = as.numeric(median(nGene)), median_nUMI = as.numeric(median(nUMI)),
+               median_pct_mt = round(as.numeric(median(pct_mt)), 3), mean_doublet_score = round(mean(dbl), 4),
                n_samples_ge1pct = sum(table(factor(sample, levels = LETTERS[1:8])) / .N >= 0.01),
                top_sample = names(which.max(table(sample))),
                top_sample_frac = round(max(table(sample)) / .N, 3)), by = cluster]
@@ -190,7 +190,7 @@ p4 <- ggplot(bd, aes(cluster, median_nGene)) +
   geom_col(fill = "#257de0", width = 0.75) +
   geom_hline(yintercept = median(pc$nGene), linetype = 2, colour = "grey40") +
   geom_text(aes(label = median_nGene), vjust = -0.3, size = 2.4, colour = "grey25") +
-  annotate("text", x = k + 0.4, y = median(pc$nGene), label = sprintf("all nuclei: %d", median(pc$nGene)),
+  annotate("text", x = k + 0.4, y = median(pc$nGene), label = sprintf("all nuclei: %g", median(pc$nGene)),
            hjust = 1, vjust = -0.5, size = 3, colour = "grey30") +
   scale_x_discrete(labels = xlab_map) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.08))) +
