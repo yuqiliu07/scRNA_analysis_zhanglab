@@ -9,9 +9,11 @@ Parameters per sample:
                                so this reaches a few thousand droplets into the empty plateau,
                                as CellBender recommends)
   --epochs 60, --fpr 0.01, --checkpoint-mins 10
-  --learning-rate 1e-4 (CellBender default); per-sample override with --lr, e.g. --lr D=5e-5
-  (D hit "NaN in mu" at the start of training with 1e-4; CellBender suggests halving the rate.
-   B failed in epoch 1 with "numel: integer multiplication overflow" in backward -> also 5e-5)
+  --learning-rate 1e-4 (CellBender default); per-sample override with --lr, e.g. --lr B=5e-5
+  (B was rerun and completed with 5e-5, so it is recorded as 5e-5; all other samples use 1e-4)
+  --exclude g12: every failure on g12 (D "NaN in mu"; B/C/E-H "numel: integer multiplication
+  overflow" / "CUDA error: an illegal memory access" in the first epoch, within ~25 s), while the
+  same scripts ran fine on g11 (also RTX2080Ti) -> faulty GPU on g12, not a learning-rate problem.
 
 Environment: $HOME/envs/cellbender_t113 (CellBender 0.3.2, torch 1.13.1+cu117, pyro-ppl 1.8.6).
 With torch 2.5 + pyro 1.9 the checkpoint cannot be saved ("cannot pickle weakref") and the
@@ -24,7 +26,7 @@ and <OUT_ROOT>/cellbender_params.csv (the parameters used).
 
 Run on Hoffman2 (login node is fine, standard library only):
   python3 13_make_cellbender_scripts.py
-Options: --ed-dir, --out-root, --raw-dir, --epochs, --pad, --time, --lr S=RATE (repeatable)
+Options: --ed-dir, --out-root, --raw-dir, --epochs, --pad, --time, --lr S=RATE (repeatable), --exclude
 """
 import argparse
 import csv
@@ -39,6 +41,7 @@ TEMPLATE = """#!/bin/bash
 #SBATCH --partition=campus
 #SBATCH --gres=gpu:1
 #SBATCH --constraint="V100|A100|RTX2080Ti"
+#SBATCH --exclude={exclude}
 #SBATCH --time={time}
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
@@ -50,8 +53,8 @@ TEMPLATE = """#!/bin/bash
 # CellBender remove-background：样本 {s}（由 13_make_cellbender_scripts.py 生成，请勿手改，改参数后重新生成）
 #   expected-cells          = {exp_cells}  (EmptyDrops 细胞数)
 #   total-droplets-included = {total}  (plateau_rank_start {pstart} + {pad}，plateau_rank_end = {pend})
-#   epochs = {epochs}；learning-rate = {lr}；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
-# GPU 限定 V100 / A100 / RTX2080Ti（torch 1.13.1+cu117 不支持 H200、Blackwell 和 P4）
+#   epochs = {epochs}；learning-rate = {lr}；RTX2080Ti 上约 55 分钟；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
+# GPU 限定 V100 / A100 / RTX2080Ti（torch 1.13.1+cu117 不支持 H200、Blackwell 和 P4）；排除 g12（GPU 故障，第 1 个 epoch 即 CUDA 报错）
 set -euo pipefail
 . /u/local/Modules/default/init/modules.sh
 module purge
@@ -92,9 +95,10 @@ def main():
     ap.add_argument("--script-dir", default=HERE)
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--pad", type=int, default=5000)
-    ap.add_argument("--time", default="02:00:00")
-    ap.add_argument("--lr", action="append", default=["B=5e-5", "D=5e-5"],
-                    help="per-sample learning rate, S=RATE (default B, D = 5e-5; others 1e-4)")
+    ap.add_argument("--time", default="01:30:00")
+    ap.add_argument("--lr", action="append", default=["B=5e-5"],
+                    help="per-sample learning rate, S=RATE (default B = 5e-5; others 1e-4)")
+    ap.add_argument("--exclude", default="g12", help="nodes to avoid (sbatch --exclude)")
     a = ap.parse_args()
     lr_over = dict(x.split("=", 1) for x in a.lr)
 
@@ -114,7 +118,7 @@ def main():
             raise SystemExit(f"{s}: total_droplets {total} <= expected_cells {exp_cells}")
         name = f"13_cellbender_{s}.sh"
         with open(os.path.join(a.script_dir, name), "w") as f:
-            f.write(TEMPLATE.format(s=s, time=a.time, scratch=SCRATCH, exp_cells=exp_cells, total=total,
+            f.write(TEMPLATE.format(s=s, time=a.time, exclude=a.exclude, scratch=SCRATCH, exp_cells=exp_cells, total=total,
                                     pstart=pstart, pend=pend, pad=a.pad, epochs=a.epochs, lr=lr,
                                     out_root=a.out_root, raw_dir=a.raw_dir))
         os.chmod(os.path.join(a.script_dir, name), 0o755)
@@ -127,8 +131,10 @@ def main():
 
     with open(os.path.join(a.script_dir, "13_submit_all_cellbender.sh"), "w") as f:
         f.write("#!/bin/bash\n# 提交 8 个 CellBender GPU 作业（由 13_make_cellbender_scripts.py 生成）\n"
-                "for s in " + " ".join(names) + "; do\n"
-                "  sbatch $HOME/scrna_project/script/$s\ndone\n")
+                "# 用法: bash 13_submit_all_cellbender.sh [样本...]，如 bash 13_submit_all_cellbender.sh C D E F G H\n"
+                "S=${@:-" + " ".join(n[14] for n in names) + "}\n"
+                "for s in $S; do\n"
+                "  sbatch $HOME/scrna_project/script/13_cellbender_$s.sh\ndone\n")
     os.chmod(os.path.join(a.script_dir, "13_submit_all_cellbender.sh"), 0o755)
 
     os.makedirs(a.out_root, exist_ok=True)
