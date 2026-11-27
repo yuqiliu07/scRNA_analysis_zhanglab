@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint="V100|A100|RTX2080Ti"
 #SBATCH --exclude=g12
-#SBATCH --time=01:30:00
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --output=/u/scratch/y/yuqi/FSU_seq/work_dir/logs/cellbender_G.%j.out
@@ -16,7 +16,7 @@
 # CellBender remove-background：样本 G（由 13_make_cellbender_scripts.py 生成，请勿手改，改参数后重新生成）
 #   expected-cells          = 39884  (EmptyDrops 细胞数)
 #   total-droplets-included = 88295  (plateau_rank_start 83295 + 5000，plateau_rank_end = 138824)
-#   epochs = 60；learning-rate = 1e-4；RTX2080Ti 上约 55 分钟；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
+#   epochs = 150；learning-rate = 1e-4；RTX2080Ti 上 60 epochs 约 55 分钟（150 epochs 约 2.3 小时）；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
 # GPU 限定 V100 / A100 / RTX2080Ti（torch 1.13.1+cu117 不支持 H200、Blackwell 和 P4）；排除 g12（GPU 故障，第 1 个 epoch 即 CUDA 报错）
 set -euo pipefail
 . /u/local/Modules/default/init/modules.sh
@@ -35,7 +35,7 @@ cellbender remove-background --cuda \
   --output $OUT/G_cellbender.h5 \
   --expected-cells 39884 \
   --total-droplets-included 88295 \
-  --epochs 60 \
+  --epochs 150 \
   --learning-rate 1e-4 \
   --fpr 0.01 \
   --checkpoint-mins 10

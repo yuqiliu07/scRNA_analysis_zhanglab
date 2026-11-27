@@ -8,9 +8,13 @@ Parameters per sample:
                                (<ED_DIR>/plateau.csv; the plateau starts at 0.6 x n_partitions,
                                so this reaches a few thousand droplets into the empty plateau,
                                as CellBender recommends)
-  --epochs 60, --fpr 0.01, --checkpoint-mins 10
+  --epochs 60, --fpr 0.01, --checkpoint-mins 10; per-sample override with --ep, e.g. --ep B=150
   --learning-rate 1e-4 (CellBender default); per-sample override with --lr, e.g. --lr B=5e-5
-  (B was rerun and completed with 5e-5, so it is recorded as 5e-5; all other samples use 1e-4)
+  Round 3 (B, G): with 60 epochs (B also at lr 5e-5) CellBender called far fewer cells than
+  EmptyDrops (B 35,250 vs 49,986; G 33,797 vs 39,884) and dropped mostly low-UMI non-CM nuclei
+  (B non-CM fraction 55% -> 23%), so B and G are rerun with lr 1e-4 and 150 epochs (CellBender
+  default). Defaults below record that: --ep B=150 --ep G=150, no lr override. Jobs with > 60
+  epochs get --time-long (04:00:00). The 60-epoch outputs were moved to <out_root>/_prev_run/<s>.
   --exclude g12: every failure on g12 (D "NaN in mu"; B/C/E-H "numel: integer multiplication
   overflow" / "CUDA error: an illegal memory access" in the first epoch, within ~25 s), while the
   same scripts ran fine on g11 (also RTX2080Ti) -> faulty GPU on g12, not a learning-rate problem.
@@ -26,7 +30,8 @@ and <OUT_ROOT>/cellbender_params.csv (the parameters used).
 
 Run on Hoffman2 (login node is fine, standard library only):
   python3 13_make_cellbender_scripts.py
-Options: --ed-dir, --out-root, --raw-dir, --epochs, --pad, --time, --lr S=RATE (repeatable), --exclude
+Options: --ed-dir, --out-root, --raw-dir, --epochs, --pad, --time, --time-long, --lr S=RATE,
+         --ep S=EPOCHS (both repeatable), --exclude
 """
 import argparse
 import csv
@@ -53,7 +58,7 @@ TEMPLATE = """#!/bin/bash
 # CellBender remove-background：样本 {s}（由 13_make_cellbender_scripts.py 生成，请勿手改，改参数后重新生成）
 #   expected-cells          = {exp_cells}  (EmptyDrops 细胞数)
 #   total-droplets-included = {total}  (plateau_rank_start {pstart} + {pad}，plateau_rank_end = {pend})
-#   epochs = {epochs}；learning-rate = {lr}；RTX2080Ti 上约 55 分钟；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
+#   epochs = {epochs}；learning-rate = {lr}；RTX2080Ti 上 60 epochs 约 55 分钟（150 epochs 约 2.3 小时）；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
 # GPU 限定 V100 / A100 / RTX2080Ti（torch 1.13.1+cu117 不支持 H200、Blackwell 和 P4）；排除 g12（GPU 故障，第 1 个 epoch 即 CUDA 报错）
 set -euo pipefail
 . /u/local/Modules/default/init/modules.sh
@@ -96,11 +101,15 @@ def main():
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--pad", type=int, default=5000)
     ap.add_argument("--time", default="01:30:00")
-    ap.add_argument("--lr", action="append", default=["B=5e-5"],
-                    help="per-sample learning rate, S=RATE (default B = 5e-5; others 1e-4)")
+    ap.add_argument("--time-long", default="04:00:00", help="time limit for jobs with > 60 epochs")
+    ap.add_argument("--lr", action="append", default=[],
+                    help="per-sample learning rate, S=RATE (default: all 1e-4)")
+    ap.add_argument("--ep", action="append", default=["B=150", "G=150"],
+                    help="per-sample epochs, S=N (default B = G = 150; others --epochs)")
     ap.add_argument("--exclude", default="g12", help="nodes to avoid (sbatch --exclude)")
     a = ap.parse_args()
     lr_over = dict(x.split("=", 1) for x in a.lr)
+    ep_over = {k: int(v) for k, v in (x.split("=", 1) for x in a.ep)}
 
     with open(os.path.join(a.ed_dir, "plateau.csv")) as f:
         plateau = {r["sample"]: r for r in csv.DictReader(f)}
@@ -114,20 +123,22 @@ def main():
         pstart, pend = int(p["plateau_rank_start"]), int(p["plateau_rank_end"])
         total = min(pstart + a.pad, pend)
         lr = lr_over.get(s, "1e-4")
+        epochs = ep_over.get(s, a.epochs)
+        tlim = a.time if epochs <= 60 else a.time_long
         if total <= exp_cells:
             raise SystemExit(f"{s}: total_droplets {total} <= expected_cells {exp_cells}")
         name = f"13_cellbender_{s}.sh"
         with open(os.path.join(a.script_dir, name), "w") as f:
-            f.write(TEMPLATE.format(s=s, time=a.time, exclude=a.exclude, scratch=SCRATCH, exp_cells=exp_cells, total=total,
-                                    pstart=pstart, pend=pend, pad=a.pad, epochs=a.epochs, lr=lr,
+            f.write(TEMPLATE.format(s=s, time=tlim, exclude=a.exclude, scratch=SCRATCH, exp_cells=exp_cells, total=total,
+                                    pstart=pstart, pend=pend, pad=a.pad, epochs=epochs, lr=lr,
                                     out_root=a.out_root, raw_dir=a.raw_dir))
         os.chmod(os.path.join(a.script_dir, name), 0o755)
         names.append(name)
         rows.append(dict(sample=s, expected_cells=exp_cells, total_droplets_included=total,
                          plateau_rank_start=pstart, plateau_rank_end=pend, plateau_q75=p["plateau_q75"],
-                         cellranger_cells=ed["cellranger_cells"], epochs=a.epochs, learning_rate=lr, fpr=0.01))
+                         cellranger_cells=ed["cellranger_cells"], epochs=epochs, learning_rate=lr, fpr=0.01))
         print(f"{s}: expected_cells={exp_cells:,}  total_droplets_included={total:,}  "
-              f"(plateau ranks {pstart:,}-{pend:,})  lr={lr}  -> {name}")
+              f"(plateau ranks {pstart:,}-{pend:,})  lr={lr}  epochs={epochs}  time={tlim}  -> {name}")
 
     with open(os.path.join(a.script_dir, "13_submit_all_cellbender.sh"), "w") as f:
         f.write("#!/bin/bash\n# 提交 8 个 CellBender GPU 作业（由 13_make_cellbender_scripts.py 生成）\n"

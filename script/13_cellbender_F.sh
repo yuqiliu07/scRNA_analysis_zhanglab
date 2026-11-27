@@ -16,7 +16,7 @@
 # CellBender remove-background：样本 F（由 13_make_cellbender_scripts.py 生成，请勿手改，改参数后重新生成）
 #   expected-cells          = 38720  (EmptyDrops 细胞数)
 #   total-droplets-included = 90013  (plateau_rank_start 85013 + 5000，plateau_rank_end = 141687)
-#   epochs = 60；learning-rate = 1e-4；RTX2080Ti 上约 55 分钟；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
+#   epochs = 60；learning-rate = 1e-4；RTX2080Ti 上 60 epochs 约 55 分钟（150 epochs 约 2.3 小时）；每 10 分钟写 checkpoint，超时后重新 sbatch 本脚本会从 ckpt.tar.gz 接着跑
 # GPU 限定 V100 / A100 / RTX2080Ti（torch 1.13.1+cu117 不支持 H200、Blackwell 和 P4）；排除 g12（GPU 故障，第 1 个 epoch 即 CUDA 报错）
 set -euo pipefail
 . /u/local/Modules/default/init/modules.sh
