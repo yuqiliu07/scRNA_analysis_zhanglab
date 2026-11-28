@@ -23,6 +23,7 @@
 | 14 | `14_compare_ambient.R`、`14_compare_ambient.sh` | sbatch（CPU，48 GB） | `ambient_compare_mm10/`：在第 11 步的核上比较 SoupX 与 CellBender（总去除比例 vs rho、按细胞类型的去除比例、非心肌核中残留的心肌基因、去除最多的基因），以及 CellBender 与 EmptyDrops 的细胞判定 |
 | 15 | `15_cellbender_harmony.R/.sh` | sbatch（4 CPU × 24 GB） | `harmony_cb_mm10/`：用 CellBender 校正后的 counts 重做 07/09/11（核 = pass_qc_singlet ∩ CellBender 细胞 ∩ 校正后 nGene ≥ 200；HVG 并集 → PCA 30 → Harmony → Leiden 1.0 → 清理小 cluster → panel 打分）；与第 11 步 cluster 对比（ARI、交叉表热图、按旧细胞类型着色的 UMAP、各细胞类型 CM panel 分数 raw vs CellBender） |
 | 16 | `16_cb_clean_panels.R` | 登录节点 Rscript（只读第 15 步的表） | `harmony_cb_mm10/clean/`：去掉低质量 cluster（默认 14、26、30，可用 `DROP_CLUSTERS` 改），对保留的 cluster 用 17 个 marker panel（data layer 平均 log 表达量）找 panel_1 / panel_2：`cluster_panels_clean.csv`、`cluster_panel_heatmap_clean.png` |
+| 17 | `17_rescue_doublets.R/.sh`（step 5C） | sbatch（4 CPU × 32 GB） | 双细胞 cluster（默认 6、7、12、13、15、18–23、31–33）中单谱系核的 KNN 救回（Harmony 空间 15 近邻，≥70% 同意且属于自身谱系）+ 全体核的淋巴细胞识别 + 重新嵌入后检查混合 cluster；输出 `work_dir/merged/final_annotated.rds`（`cell_type_final`、`rescue_status`）、`results/tables/rescue_summary.csv`、`new_cluster_check.csv`、`final_celltype_counts.csv`、`results/figures/rescue_umap.pdf`，更新 `pipeline_state.json` |
 
 需要安装的 R 包见 `03_install_R_packages.sh`、`05_install_R_packages.sh`、`07_install_Seurat.sh`，
 R 版本为 R/4.6.1。
