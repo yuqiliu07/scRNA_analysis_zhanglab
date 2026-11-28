@@ -22,6 +22,7 @@
 | 13 | `13_install_cellbender.sh`、`13_make_cellbender_scripts.py`、`13_cellbender_<s>.sh`、`13_submit_all_cellbender.sh`（可带样本名）、`13_cellbender_curves.py` | 登录节点运行 python 生成脚本，然后 sbatch（GPU）；跑完后用 curves 脚本画学习曲线 | `cellbender_mm10/<s>/`：CellBender remove-background（expected-cells = EmptyDrops 细胞数，total-droplets = plateau_rank_start + 5000，learning-rate 1e-4；epochs = 60，B 和 G 为 150（60 epochs 时 cell calling 漏掉大量非心肌核，重跑；旧结果在 `cellbender_mm10/_prev_run/`）；排除 g12 节点（GPU 故障）；环境 `$HOME/envs/cellbender_t113`：torch 1.13.1 + pyro 1.8.6）；`cellbender_learning_curves.png`、`cellbender_convergence.csv` |
 | 14 | `14_compare_ambient.R`、`14_compare_ambient.sh` | sbatch（CPU，48 GB） | `ambient_compare_mm10/`：在第 11 步的核上比较 SoupX 与 CellBender（总去除比例 vs rho、按细胞类型的去除比例、非心肌核中残留的心肌基因、去除最多的基因），以及 CellBender 与 EmptyDrops 的细胞判定 |
 | 15 | `15_cellbender_harmony.R/.sh` | sbatch（4 CPU × 24 GB） | `harmony_cb_mm10/`：用 CellBender 校正后的 counts 重做 07/09/11（核 = pass_qc_singlet ∩ CellBender 细胞 ∩ 校正后 nGene ≥ 200；HVG 并集 → PCA 30 → Harmony → Leiden 1.0 → 清理小 cluster → panel 打分）；与第 11 步 cluster 对比（ARI、交叉表热图、按旧细胞类型着色的 UMAP、各细胞类型 CM panel 分数 raw vs CellBender） |
+| 16 | `16_cb_clean_panels.R` | 登录节点 Rscript（只读第 15 步的表） | `harmony_cb_mm10/clean/`：去掉低质量 cluster（默认 14、26、30，可用 `DROP_CLUSTERS` 改），对保留的 cluster 用 17 个 marker panel（data layer 平均 log 表达量）找 panel_1 / panel_2：`cluster_panels_clean.csv`、`cluster_panel_heatmap_clean.png` |
 
 需要安装的 R 包见 `03_install_R_packages.sh`、`05_install_R_packages.sh`、`07_install_Seurat.sh`，
 R 版本为 R/4.6.1。
